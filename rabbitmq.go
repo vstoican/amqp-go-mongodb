@@ -5,17 +5,27 @@ import (
 	"log"
 	"os"
 
+	"gopkg.in/mgo.v2"
+
 	"github.com/streadway/amqp"
 )
 
 // RMQWorker - RabbitMQ Worker
 type RMQWorker struct {
 	connection *amqp.Connection
+	queue      string
+	mongo      *mgo.Session
 }
 
-// RMQconnect - Create connection to RabbitMQ
-func RMQconnect() {
+// NewWorker - Create connection to RabbitMQ
+func NewWorker(queue string) *RMQWorker {
+
+	var err error
+
 	worker := new(RMQWorker)
+	worker.queue = queue
+	worker.mongo = mongoConnect()
+
 	connString := fmt.Sprintf("amqp://%s:%s@%s:%s/",
 		os.Getenv("RABBITMQ_USER"),
 		os.Getenv("RABBITMQ_PASSWORD"),
@@ -23,20 +33,21 @@ func RMQconnect() {
 		os.Getenv("RABBITMQ_PORT"),
 	)
 
-	conn, err := amqp.Dial(connString)
+	worker.connection, err = amqp.Dial(connString)
 	failOnError(err, "Failed to connect to RabbitMQ")
 
-	worker.connection = conn
+	return worker
 }
 
 // startConsumer - Start consumer for a queue
-func (worker *RMQWorker) startConsumer(queue string) {
+func (worker *RMQWorker) startConsumer() {
+
 	ch, err := worker.connection.Channel()
 	failOnError(err, "Failed to open a channel")
 	defer ch.Close()
 
 	msgs, err := ch.Consume(
-		queue,             // queue
+		worker.queue,      // queue
 		"amqp-go-mongodb", // consumer
 		true,              // auto-ack
 		false,             // exclusive
@@ -50,11 +61,12 @@ func (worker *RMQWorker) startConsumer(queue string) {
 
 	go func() {
 		for d := range msgs {
-			log.Printf("Received a message: %s", d.Body)
+			log.Printf("Worker[%s]: Received a message: %s", worker.queue, d.Body)
+			insertMessage(worker.mongo, worker.queue, d)
 		}
 	}()
 
-	log.Printf(" [*] Waiting for messages. To exit press CTRL+C")
+	log.Printf(" [*] Worker[%s] Waiting for messages...", worker.queue)
 	<-forever
 
 }
