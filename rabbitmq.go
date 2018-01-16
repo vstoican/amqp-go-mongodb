@@ -62,7 +62,7 @@ func (worker *RMQWorker) startConsumer() {
 	go func() {
 		for d := range msgs {
 			log.Printf("Worker[%s]: Received a message: %s", worker.queue, d.Body)
-			insertMessage(worker.mongo, worker.queue, d)
+			go insertMessage(worker.mongo, worker.queue, d)
 		}
 	}()
 
