@@ -1,5 +1,5 @@
 # Ignore publisher
-publisher
+publisher/publisher
 
 #Ignore amqp-go-mongodb 
 amqp-go-mongodb
