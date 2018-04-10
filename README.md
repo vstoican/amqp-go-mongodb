@@ -1,2 +1,2 @@
 # amqp-go-mongodb
-RabbitMQ client consumes messages from queues and dump them in MongoDB
+amqp-go-mongodb consumes messages from RabbitMQ queues and dumps them in MongoDB.
